@@ -1,3 +1,4 @@
+import math
 import networkx as nx
 import random
 from base_player import BasePlayer
@@ -12,6 +13,12 @@ class Player(BasePlayer):
     # You can set up static state here
     stations = []
 
+    def gaussian(self, sigma, x):
+        """ Gaussian, mean=0, sigma=sigma """
+        sqrt2pi = math.sqrt(2*math.pi)
+        expterm = math.exp(-(x**2) / (2 * sigma**2))
+        return 1.0 / (sigma * sqrt2pi) * expterm
+
     def __init__(self, state):
         """
         Initializes your Player. You can set up persistent state, do analysis
@@ -21,8 +28,33 @@ class Player(BasePlayer):
         state : State
             The initial state of the game. See state.py for more information.
         """
+        graph = state.get_graph()
 
-        return
+        self.g = graph.copy()
+
+        self.gaussians = []
+
+        for i in xrange(int(ORDER_VAR * 3)):
+            self.gaussians.append(self.gaussian(ORDER_VAR, i))
+
+        for n in graph.nodes():
+            self.g.node[n]['weight'] = 1.0 / graph.number_of_nodes()
+
+    def update_weights(self, state):
+        graph = state.get_graph()
+        for order in state.pending_orders:
+            if order.get_time_created() == state.get_time():
+                frontier = [order.get_node()]
+                for i in xrange(int(ORDER_VAR * 2)):
+                    for n in frontier:
+                        self.g.node[n]['weight'] += self.gaussians[i]
+                    frontier = set(sum([self.g.neighbors(n) for n in frontier], []))
+
+        total = 0.0
+        for n in graph.nodes():
+            total += self.g.node[n]['weight']
+        for n in graph.nodes():
+            self.g.node[n]['weight'] /= total
 
     # Checks if we can use a given path
     def path_is_valid(self, state, path):
@@ -53,6 +85,8 @@ class Player(BasePlayer):
         graph = state.get_graph()
         station = graph.nodes()[0]
 
+        self.update_weights(state)
+
         commands = []
         if not self.stations:
             commands.append(self.build_command(station))
@@ -60,7 +94,7 @@ class Player(BasePlayer):
 
         pending_orders = state.get_pending_orders()
         if len(pending_orders) != 0:
-            order = max(pending_orders, lambda o: o.get_money())
+            order = max(pending_orders, key = lambda o: o.get_money())
             path = nx.shortest_path(graph, station, order.get_node())
             if self.path_is_valid(state, path):
                 commands.append(self.send_command(order, path))

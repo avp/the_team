@@ -1,5 +1,6 @@
 import logging as log
 import math
+import logging as log
 import networkx as nx
 import random
 from base_player import BasePlayer
@@ -34,7 +35,7 @@ class Player(BasePlayer):
         self.stations = []
 
         for i in xrange(int(ORDER_VAR * 3)):
-            self.gaussians.append(self.gaussian(ORDER_VAR, i))
+            self.gaussians.append(self.gaussian(ORDER_VAR ** 0.5, i))
 
         for n in graph.nodes():
             self.g.node[n]['weight'] = 1.0 / graph.number_of_nodes()
@@ -47,7 +48,7 @@ class Player(BasePlayer):
                 for i in xrange(int(ORDER_VAR * 2)):
                     for n in frontier:
                         self.g.node[n]['weight'] += self.gaussians[i]
-                    frontier = set(sum([self.g.neighbors(n) for n in frontier], []))
+                    frontier = sum([self.g.neighbors(n) for n in frontier], [])
 
         total = 0.0
         for n in graph.nodes():
@@ -77,7 +78,7 @@ class Player(BasePlayer):
         for i in range(0, len(path) - 1):
             self.g.edge[path[i]][path[i + 1]]['free'] = val
 
-    def get_max_node(self, graph, attr):
+    def get_max_weight(self, graph, attr='weight'):
         result = graph.nodes()[0]
         for n in graph.nodes():
             if self.g.node[n][attr] > self.g.node[result][attr]:
@@ -102,28 +103,39 @@ class Player(BasePlayer):
         # and tries to find the shortest path from it to first pending order.
         # We recommend making it a bit smarter ;-)
         self.state = state
+        money = state.money
         graph = state.get_graph()
 
         self.update_weights(state)
+
         for (u, v) in self.g.edges():
             self.g.edge[u][v]['free'] = float('inf') if self.state.graph.edge[u][v]['in_use'] else 1
 
         commands = []
-        if not self.stations:
-            newstation = self.get_max_node(graph, 'weight')
+        if not self.stations and state.pending_orders:
+            newstation = self.get_max_weight(graph)
             commands.append(self.build_command(newstation))
             self.stations.append(newstation)
+            money -= INIT_BUILD_COST
 
-        stationcost = INIT_BUILD_COST * BUILD_FACTOR ** len(self.stations)
-        if stationcost <= state.money:
-            newstation = self.get_max_node(graph, 'weight')
+        stationcost = INIT_BUILD_COST * (BUILD_FACTOR ** len(self.stations))
+        if stationcost <= money:
             oldfitness = self.fitness()
-            self.stations.append(newstation)
-            newfitness = self.fitness()
-            if newfitness > oldfitness and stationcost < state.money:
-              commands.append(self.build_command(newstation))
-            else:
-              self.stations.pop()
+            maxdelta = 0
+            best_station = None
+            for newstation in graph.nodes():
+                if newstation in self.stations:
+                    continue
+                self.stations.append(newstation)
+                newfitness = self.fitness()
+                self.stations.pop()
+                delta = newfitness - oldfitness
+                if delta > maxdelta and delta > stationcost:
+                    best_station = newstation
+                    maxdelta = delta
+            if best_station:
+                commands.append(self.build_command(best_station))
+                self.stations.append(best_station)
 
         pending_orders = set(state.get_pending_orders())
 

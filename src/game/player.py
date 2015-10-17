@@ -81,14 +81,12 @@ class Player(BasePlayer):
         graph = state.get_graph()
         for i in range(0, len(path) - 1):
             if graph.edge[path[i]][path[i + 1]]['in_use']:
-                log.error("invalid edge: %r - %r (%r)", path[i], path[i + 1],
-                        self.g.edge[path[i]][path[i+1]])
                 return False
         return True
 
-    def set_path(self, path, val):
+    def set_path(self, g, path, attr, val):
         for i in range(0, len(path) - 1):
-            self.g.edge[path[i]][path[i + 1]]['free'] = val
+            g.edge[path[i]][path[i + 1]][attr] = val
 
     def get_max_weight(self, graph, attr='weight'):
         result = graph.nodes()[0]
@@ -178,17 +176,18 @@ class Player(BasePlayer):
 
             if best_score > 0:
                 paths.append((best_path, best_order))
-                self.set_path(best_path, float('inf'))
+                self.set_path(self.g, best_path, 'free', float('inf'))
+                self.set_path(state.graph, best_path, 'in_use', True)
                 pending_orders.remove(best_order)
             else:
                 break
 
         #log.warning("L4")
         for (path, order) in paths:
-            if self.path_is_valid(state, path):
-                commands.append(self.send_command(order, path))
-            else:
-                log.warning("WHAT THE HELLLLLLLLL" * 100)
+            # if self.path_is_valid(state, path):
+            commands.append(self.send_command(order, path))
+            # else:
+            #     log.warning("WHAT THE HELLLLLLLLL" * 100)
 
         t3 = time.time()
         #log.warning("L5")

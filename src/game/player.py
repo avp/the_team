@@ -126,7 +126,7 @@ class Player(BasePlayer):
 
         log.warning("L2")
         commands = []
-        if not self.stations and state.pending_orders:
+        if (not self.stations) and state.pending_orders:
             newstation = self.get_max_weight(graph)
             commands.append(self.build_command(newstation))
             self.stations.append(newstation)

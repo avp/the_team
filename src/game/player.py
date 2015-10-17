@@ -133,7 +133,7 @@ class Player(BasePlayer):
 
         t1 = time.time()
         stationcost = INIT_BUILD_COST * (BUILD_FACTOR ** len(self.stations))
-        if stationcost <= money and self.more_stations:
+        if True or stationcost <= money and self.more_stations:
             oldfitness = self.fitness()
             maxdelta = 0
             best_station = None

@@ -1,4 +1,5 @@
 import logging as log
+import time
 import math
 import logging as log
 import networkx as nx
@@ -14,6 +15,8 @@ class Player(BasePlayer):
 
     def gaussian(self, sigma, x):
         """ Gaussian, mean=0, sigma=sigma """
+        x = float(x)
+        sigma = float(sigma)
         sqrt2pi = math.sqrt(2*math.pi)
         expterm = math.exp(-(x**2) / (2 * sigma**2))
         return 1.0 / (sigma * sqrt2pi) * expterm
@@ -44,11 +47,16 @@ class Player(BasePlayer):
         graph = state.get_graph()
         for order in state.pending_orders:
             if order.get_time_created() == state.get_time():
-                frontier = [order.get_node()]
+                frontier = set([order.get_node()])
+                new_front = set()
+                seen = set(frontier)
                 for i in xrange(int(ORDER_VAR * 2)):
                     for n in frontier:
                         self.g.node[n]['weight'] += self.gaussians[i]
-                    frontier = sum([self.g.neighbors(n) for n in frontier], [])
+                        for nbr in self.g.neighbors(n):
+                            seen.add(nbr)
+                            new_front.add(nbr)
+                frontier = new_front
 
         total = 0.0
         for n in graph.nodes():
@@ -58,6 +66,8 @@ class Player(BasePlayer):
         return
 
     def fitness(self, weight=None):
+        if not self.stations:
+            return float("-inf")
         dists = {(station,dest): val for station in self.stations for (dest,val) in
                     nx.shortest_path_length(self.g, station, weight=weight).iteritems() }
         s = 0
@@ -102,15 +112,19 @@ class Player(BasePlayer):
         # We have implemented a naive bot for you that builds a single station
         # and tries to find the shortest path from it to first pending order.
         # We recommend making it a bit smarter ;-)
+        log.warning("L1")
         self.state = state
         money = state.money
         graph = state.get_graph()
 
+        t0 = time.time()
         self.update_weights(state)
+        log.warning("L1.5")
 
         for (u, v) in self.g.edges():
             self.g.edge[u][v]['free'] = float('inf') if self.state.graph.edge[u][v]['in_use'] else 1
 
+        log.warning("L2")
         commands = []
         if not self.stations and state.pending_orders:
             newstation = self.get_max_weight(graph)
@@ -118,6 +132,7 @@ class Player(BasePlayer):
             self.stations.append(newstation)
             money -= INIT_BUILD_COST
 
+        t1 = time.time()
         stationcost = INIT_BUILD_COST * (BUILD_FACTOR ** len(self.stations))
         if stationcost <= money:
             oldfitness = self.fitness()
@@ -137,7 +152,9 @@ class Player(BasePlayer):
                 commands.append(self.build_command(best_station))
                 self.stations.append(best_station)
 
+        log.warning("L3")
         pending_orders = set(state.get_pending_orders())
+        t2 = time.time()
 
         paths = []
         ## Calculate paths
@@ -149,14 +166,12 @@ class Player(BasePlayer):
                 o_val = state.money_from(order)
                 target = order.get_node()
                 for station in self.stations:
-                    if nx.shortest_path_length(self.g, station, target, weight='free') > 3000:
-                        continue
-                    for path in nx.all_shortest_paths(self.g, station, target, weight='free'):
-                        score = o_val-len(path)*DECAY_FACTOR
-                        if score > best_score:
-                            best_score = score
-                            best_path = path
-                            best_order = order
+                    path = nx.shortest_path(self.g, station, target, weight='free')
+                    score = o_val-len(path)*DECAY_FACTOR
+                    if score > best_score:
+                        best_score = score
+                        best_path = path
+                        best_order = order
 
             if best_score > 0:
                 paths.append((best_path, best_order))
@@ -165,11 +180,16 @@ class Player(BasePlayer):
             else:
                 break
 
+        log.warning("L4")
         for (path, order) in paths:
             if self.path_is_valid(state, path):
                 commands.append(self.send_command(order, path))
             else:
                 log.warning("WHAT THE HELLLLLLLLL" * 100)
+
+        t3 = time.time()
+        log.warning("L5")
+        log.warning("%.5f, %.5f, %.5f", t1 - t0, t2 - t1, t3 - t2)
 
 
         return commands

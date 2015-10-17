@@ -43,6 +43,8 @@ class Player(BasePlayer):
         for n in graph.nodes():
             self.g.node[n]['weight'] = 1.0 / graph.number_of_nodes()
 
+        self.more_stations = True
+
     def update_weights(self, state):
         graph = state.get_graph()
         for order in state.pending_orders:
@@ -134,7 +136,7 @@ class Player(BasePlayer):
 
         t1 = time.time()
         stationcost = INIT_BUILD_COST * (BUILD_FACTOR ** len(self.stations))
-        if stationcost <= money:
+        if stationcost <= money and self.more_stations:
             oldfitness = self.fitness()
             maxdelta = 0
             best_station = None
@@ -151,6 +153,8 @@ class Player(BasePlayer):
             if best_station:
                 commands.append(self.build_command(best_station))
                 self.stations.append(best_station)
+            else:
+                self.more_stations = False
 
         #log.warning("L3")
         pending_orders = set(state.get_pending_orders())
@@ -191,7 +195,7 @@ class Player(BasePlayer):
 
         t3 = time.time()
         #log.warning("L5")
-        #log.warning("%.5f, %.5f, %.5f", t1 - t0, t2 - t1, t3 - t2)
+        log.warning("%.5f, %.5f, %.5f", t1 - t0, t2 - t1, t3 - t2)
 
 
         return commands

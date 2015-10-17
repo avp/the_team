@@ -45,6 +45,7 @@ class Player(BasePlayer):
             self.g.node[n]['weight'] = 1.0 / graph.number_of_nodes()
 
         self.more_stations = True
+        self.dists = nx.shortest_path_length(self.g)
 
     def update_weights(self, state):
         graph = state.get_graph()
@@ -68,11 +69,9 @@ class Player(BasePlayer):
     def fitness(self, weight=None):
         if not self.stations:
             return float("-inf")
-        dists = {(station,dest): val for station in self.stations for (dest,val) in
-                    nx.shortest_path_length(self.g, station, weight=weight).iteritems() }
         s = 0
         for node in self.g.nodes():
-            d = min( (dists[(st, node)] for st in self.stations) )
+            d = min( (self.dists[st][node] for st in self.stations) )
             s += (SCORE_MEAN - (d * DECAY_FACTOR)) * (self.g.node[node]['weight'] / self.total_weight)
         return s * (GAME_LENGTH - self.state.get_time() - 1) * ORDER_CHANCE
 
@@ -151,6 +150,7 @@ class Player(BasePlayer):
             if best_station:
                 commands.append(self.build_command(best_station))
                 self.stations.append(best_station)
+
             else:
                 self.more_stations = False
 

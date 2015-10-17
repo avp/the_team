@@ -72,6 +72,13 @@ class Player(BasePlayer):
                 return False
         return True
 
+    def get_max_node(self, graph, attr):
+        result = graph.nodes()[0]
+        for n in graph.nodes():
+            if self.g.node[n][attr] > self.g.node[result][attr]:
+                result = n
+        return result
+
     def step(self, state):
         """
         Determine actions based on the current state of the city. Called every
@@ -97,16 +104,23 @@ class Player(BasePlayer):
 
         commands = []
         if not self.stations:
-            station = graph.nodes()[0]
-            for n in graph.nodes():
-                if self.g.node[n]['weight'] > self.g.node[station]['weight']:
-                    station = n
-            commands.append(self.build_command(station))
-            self.stations.append(station)
+            newstation = self.get_max_node(graph, 'weight')
+            commands.append(self.build_command(newstation))
+            self.stations.append(newstation)
+
+        stationcost = INIT_BUILD_COST * BUILD_FACTOR ** len(self.stations)
+        if stationcost <= state.money:
+            newstation = self.get_max_node(graph, 'weight')
+            oldfitness = self.fitness()
+            self.stations.append(newstation)
+            newfitness = self.fitness()
+            if newfitness > oldfitness and stationcost < state.money:
+              commands.append(self.build_command(newstation))
+            else:
+              self.stations.pop()
 
         station = self.stations[0]
 
-        print "fitness=", self.fitness()
         pending_orders = state.get_pending_orders()
         if len(pending_orders) != 0:
             order = max(pending_orders, key = lambda o: o.get_money())

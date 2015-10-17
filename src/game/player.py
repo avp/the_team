@@ -112,7 +112,7 @@ class Player(BasePlayer):
             self.g.edge[u][v]['free'] = float('inf') if self.state.graph.edge[u][v]['in_use'] else 1
 
         commands = []
-        if not self.stations and state.pending_orders:
+        if (not self.stations) and state.pending_orders:
             newstation = self.get_max_weight(graph)
             commands.append(self.build_command(newstation))
             self.stations.append(newstation)

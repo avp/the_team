@@ -83,14 +83,19 @@ class Player(BasePlayer):
         # We recommend making it a bit smarter ;-)
 
         graph = state.get_graph()
-        station = graph.nodes()[0]
 
         self.update_weights(state)
 
         commands = []
         if not self.stations:
+            station = graph.nodes()[0]
+            for n in graph.nodes():
+                if self.g.node[n]['weight'] > self.g.node[station]['weight']:
+                    station = n
             commands.append(self.build_command(station))
             self.stations.append(station)
+
+        station = self.stations[0]
 
         pending_orders = state.get_pending_orders()
         if len(pending_orders) != 0:

@@ -72,6 +72,10 @@ class Player(BasePlayer):
                 return False
         return True
 
+    def set_path(self, path, val):
+        for i in range(0, len(path) - 1):
+            self.g.edge[path[i]][path[i + 1]]['free'] = val
+
     def step(self, state):
         """
         Determine actions based on the current state of the city. Called every
@@ -94,6 +98,8 @@ class Player(BasePlayer):
         graph = state.get_graph()
 
         self.update_weights(state)
+        for (u, v) in self.g.edges():
+            self.g.edge[u][v]['free'] = float('inf') if self.state.graph.edge[u][v]['in_use'] else 1
 
         commands = []
         if not self.stations:
@@ -104,14 +110,44 @@ class Player(BasePlayer):
             commands.append(self.build_command(station))
             self.stations.append(station)
 
+        pending_orders = set(state.get_pending_orders())
+
+        current_fitness = self.fitness(weight='free')
+        paths = []
+        ## Calculate paths
+
+        while True:
+            best_path = None
+            best_order = None
+            best_score = float("-inf")
+            for order in pending_orders:
+                o_val = state.money_from(order)
+                target = order.get_node()
+                for station in self.stations:
+                    if nx.shortest_path_length(self.g, station, target, weight='free') > 3000:
+                        continue
+                    for path in nx.all_shortest_paths(self.g, station, target, weight='free'):
+                        self.set_path(path, 1)
+                        score = self.fitness(weight='free')+o_val-len(path)*DECAY_FACTOR
+                        self.set_path(path, 1)
+                        if score > best_score:
+                            best_score = score
+                            best_path = path
+                            best_order = order
+
+            if best_score > current_fitness:
+                paths.append((best_path, best_order))
+                self.set_path(best_path, float('inf'))
+                pending_orders.remove(best_order)
+            else:
+                break
+
         station = self.stations[0]
 
-        print "fitness=", self.fitness()
-        pending_orders = state.get_pending_orders()
-        if len(pending_orders) != 0:
-            order = max(pending_orders, key = lambda o: o.get_money())
-            path = nx.shortest_path(graph, station, order.get_node())
+        for (path, order) in paths:
             if self.path_is_valid(state, path):
                 commands.append(self.send_command(order, path))
+            else:
+                print "WHAT THE HELLLLLLLLL" * 100
 
         return commands

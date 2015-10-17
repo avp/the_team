@@ -33,6 +33,7 @@ class Player(BasePlayer):
         graph = state.get_graph()
 
         self.g = graph.copy()
+        self.total_weight = 0
 
         self.gaussians = []
         self.stations = []
@@ -60,12 +61,9 @@ class Player(BasePlayer):
                             new_front.add(nbr)
                 frontier = new_front
 
-        total = 0.0
-        for n in graph.nodes():
-            total += self.g.node[n]['weight']
-        for n in graph.nodes():
-            self.g.node[n]['weight'] /= total
-        return
+        self.total_weight = sum(self.g.node[n]['weight'] for n in graph.nodes())
+        # for n in graph.nodes():
+        #     self.g.node[n]['weight'] /= total
 
     def fitness(self, weight=None):
         if not self.stations:
@@ -75,7 +73,7 @@ class Player(BasePlayer):
         s = 0
         for node in self.g.nodes():
             d = min( (dists[(st, node)] for st in self.stations) )
-            s += (SCORE_MEAN - (d * DECAY_FACTOR)) * self.g.node[node]['weight']
+            s += (SCORE_MEAN - (d * DECAY_FACTOR)) * (self.g.node[node]['weight'] / self.total_weight)
         return s * (GAME_LENGTH - self.state.get_time() - 1) * ORDER_CHANCE
 
     # Checks if we can use a given path

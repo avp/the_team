@@ -1,3 +1,4 @@
+import logging as log
 import math
 import networkx as nx
 import random
@@ -100,7 +101,6 @@ class Player(BasePlayer):
         # We have implemented a naive bot for you that builds a single station
         # and tries to find the shortest path from it to first pending order.
         # We recommend making it a bit smarter ;-)
-
         self.state = state
         graph = state.get_graph()
 
@@ -127,10 +127,8 @@ class Player(BasePlayer):
 
         pending_orders = set(state.get_pending_orders())
 
-        current_fitness = self.fitness(weight='free')
         paths = []
         ## Calculate paths
-
         while True:
             best_path = None
             best_order = None
@@ -142,15 +140,13 @@ class Player(BasePlayer):
                     if nx.shortest_path_length(self.g, station, target, weight='free') > 3000:
                         continue
                     for path in nx.all_shortest_paths(self.g, station, target, weight='free'):
-                        self.set_path(path, 1)
-                        score = self.fitness(weight='free')+o_val-len(path)*DECAY_FACTOR
-                        self.set_path(path, 1)
+                        score = o_val-len(path)*DECAY_FACTOR
                         if score > best_score:
                             best_score = score
                             best_path = path
                             best_order = order
 
-            if best_score > current_fitness:
+            if best_score > 0:
                 paths.append((best_path, best_order))
                 self.set_path(best_path, float('inf'))
                 pending_orders.remove(best_order)
@@ -161,6 +157,7 @@ class Player(BasePlayer):
             if self.path_is_valid(state, path):
                 commands.append(self.send_command(order, path))
             else:
-                print "WHAT THE HELLLLLLLLL" * 100
+                log.warning("WHAT THE HELLLLLLLLL" * 100)
+
 
         return commands

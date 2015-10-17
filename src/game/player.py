@@ -81,6 +81,8 @@ class Player(BasePlayer):
         graph = state.get_graph()
         for i in range(0, len(path) - 1):
             if graph.edge[path[i]][path[i + 1]]['in_use']:
+                log.error("invalid edge: %r - %r (%r)", path[i], path[i + 1],
+                        self.g.edge[path[i]][path[i+1]])
                 return False
         return True
 
@@ -112,19 +114,19 @@ class Player(BasePlayer):
         # We have implemented a naive bot for you that builds a single station
         # and tries to find the shortest path from it to first pending order.
         # We recommend making it a bit smarter ;-)
-        log.warning("L1")
+        #log.warning("L1")
         self.state = state
         money = state.money
         graph = state.get_graph()
 
         t0 = time.time()
         self.update_weights(state)
-        log.warning("L1.5")
+        #log.warning("L1.5")
 
         for (u, v) in self.g.edges():
             self.g.edge[u][v]['free'] = float('inf') if self.state.graph.edge[u][v]['in_use'] else 1
 
-        log.warning("L2")
+        #log.warning("L2")
         commands = []
         if (not self.stations) and state.pending_orders:
             newstation = self.get_max_weight(graph)
@@ -152,7 +154,7 @@ class Player(BasePlayer):
                 commands.append(self.build_command(best_station))
                 self.stations.append(best_station)
 
-        log.warning("L3")
+        #log.warning("L3")
         pending_orders = set(state.get_pending_orders())
         t2 = time.time()
 
@@ -167,6 +169,7 @@ class Player(BasePlayer):
                 target = order.get_node()
                 for station in self.stations:
                     path = nx.shortest_path(self.g, station, target, weight='free')
+                    if not self.path_is_valid(state, path): continue
                     score = o_val-len(path)*DECAY_FACTOR
                     if score > best_score:
                         best_score = score
@@ -180,7 +183,7 @@ class Player(BasePlayer):
             else:
                 break
 
-        log.warning("L4")
+        #log.warning("L4")
         for (path, order) in paths:
             if self.path_is_valid(state, path):
                 commands.append(self.send_command(order, path))
@@ -188,8 +191,8 @@ class Player(BasePlayer):
                 log.warning("WHAT THE HELLLLLLLLL" * 100)
 
         t3 = time.time()
-        log.warning("L5")
-        log.warning("%.5f, %.5f, %.5f", t1 - t0, t2 - t1, t3 - t2)
+        #log.warning("L5")
+        #log.warning("%.5f, %.5f, %.5f", t1 - t0, t2 - t1, t3 - t2)
 
 
         return commands

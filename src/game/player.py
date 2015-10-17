@@ -10,7 +10,7 @@ class Player(BasePlayer):
     """
 
     # You can set up static state here
-    has_built_station = False
+    stations = []
 
     def __init__(self, state):
         """
@@ -54,13 +54,13 @@ class Player(BasePlayer):
         station = graph.nodes()[0]
 
         commands = []
-        if not self.has_built_station:
+        if not self.stations:
             commands.append(self.build_command(station))
-            self.has_built_station = True
+            self.stations.append(station)
 
         pending_orders = state.get_pending_orders()
         if len(pending_orders) != 0:
-            order = random.choice(pending_orders)
+            order = max(pending_orders, lambda o: o.get_money())
             path = nx.shortest_path(graph, station, order.get_node())
             if self.path_is_valid(state, path):
                 commands.append(self.send_command(order, path))

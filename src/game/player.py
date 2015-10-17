@@ -134,7 +134,7 @@ class Player(BasePlayer):
         t1 = time.time()
         stationcost = INIT_BUILD_COST * (BUILD_FACTOR ** len(self.stations))
         if stationcost <= money and self.more_stations:
-            size = 250
+            size = 350
             if graph.number_of_nodes() > size:
                 sample = random.sample(graph.nodes(), size)
             else:
@@ -198,7 +198,7 @@ class Player(BasePlayer):
 
         t3 = time.time()
         #log.warning("L5")
-        log.warning("%.5f, %.5f, %.5f", t1 - t0, t2 - t1, t3 - t2)
+        # log.warning("%.5f, %.5f, %.5f", t1 - t0, t2 - t1, t3 - t2)
 
 
         return commands

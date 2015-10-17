@@ -10,9 +10,6 @@ class Player(BasePlayer):
     name or the base class.
     """
 
-    # You can set up static state here
-    stations = []
-
     def gaussian(self, sigma, x):
         """ Gaussian, mean=0, sigma=sigma """
         sqrt2pi = math.sqrt(2*math.pi)
@@ -33,6 +30,7 @@ class Player(BasePlayer):
         self.g = graph.copy()
 
         self.gaussians = []
+        self.stations = []
 
         for i in xrange(int(ORDER_VAR * 3)):
             self.gaussians.append(self.gaussian(ORDER_VAR, i))
@@ -55,6 +53,16 @@ class Player(BasePlayer):
             total += self.g.node[n]['weight']
         for n in graph.nodes():
             self.g.node[n]['weight'] /= total
+        return
+
+    def fitness(self, weight=None):
+        dists = {(station,dest): val for station in self.stations for (dest,val) in
+                    nx.shortest_path_length(self.g, station, weight=weight).iteritems() }
+        s = 0
+        for node in self.g.nodes():
+            d = min( (dists[(st, node)] for st in self.stations) )
+            s += (SCORE_MEAN - (d * DECAY_FACTOR)) * self.g.node[node]['weight']
+        return s * (GAME_LENGTH - self.state.get_time() - 1) * ORDER_CHANCE
 
     # Checks if we can use a given path
     def path_is_valid(self, state, path):
@@ -82,6 +90,7 @@ class Player(BasePlayer):
         # and tries to find the shortest path from it to first pending order.
         # We recommend making it a bit smarter ;-)
 
+        self.state = state
         graph = state.get_graph()
 
         self.update_weights(state)
@@ -97,6 +106,7 @@ class Player(BasePlayer):
 
         station = self.stations[0]
 
+        print "fitness=", self.fitness()
         pending_orders = state.get_pending_orders()
         if len(pending_orders) != 0:
             order = max(pending_orders, key = lambda o: o.get_money())

@@ -66,11 +66,11 @@ class Player(BasePlayer):
         # for n in graph.nodes():
         #     self.g.node[n]['weight'] /= total
 
-    def fitness(self, weight=None):
+    def fitness(self, sample, weight=None):
         if not self.stations:
             return float("-inf")
         s = 0
-        for node in self.g.nodes():
+        for node in sample:
             d = min( (self.dists[st][node] for st in self.stations) )
             s += (SCORE_MEAN - (d * DECAY_FACTOR)) * (self.g.node[node]['weight'] / self.total_weight)
         return s * (GAME_LENGTH - self.state.get_time() - 1) * ORDER_CHANCE
@@ -133,15 +133,20 @@ class Player(BasePlayer):
 
         t1 = time.time()
         stationcost = INIT_BUILD_COST * (BUILD_FACTOR ** len(self.stations))
-        if True or stationcost <= money and self.more_stations:
-            oldfitness = self.fitness()
+        if stationcost <= money and self.more_stations:
+            size = 250
+            if graph.number_of_nodes() > size:
+                sample = random.sample(graph.nodes(), size)
+            else:
+                sample = graph.nodes()
+            oldfitness = self.fitness(sample)
             maxdelta = 0
             best_station = None
-            for newstation in graph.nodes():
+            for newstation in sample:
                 if newstation in self.stations:
                     continue
                 self.stations.append(newstation)
-                newfitness = self.fitness()
+                newfitness = self.fitness(sample)
                 self.stations.pop()
                 delta = newfitness - oldfitness
                 if delta > maxdelta and delta > stationcost:

@@ -76,6 +76,13 @@ class Player(BasePlayer):
         for i in range(0, len(path) - 1):
             self.g.edge[path[i]][path[i + 1]]['free'] = val
 
+    def get_max_node(self, graph, attr):
+        result = graph.nodes()[0]
+        for n in graph.nodes():
+            if self.g.node[n][attr] > self.g.node[result][attr]:
+                result = n
+        return result
+
     def step(self, state):
         """
         Determine actions based on the current state of the city. Called every
@@ -103,12 +110,20 @@ class Player(BasePlayer):
 
         commands = []
         if not self.stations:
-            station = graph.nodes()[0]
-            for n in graph.nodes():
-                if self.g.node[n]['weight'] > self.g.node[station]['weight']:
-                    station = n
-            commands.append(self.build_command(station))
-            self.stations.append(station)
+            newstation = self.get_max_node(graph, 'weight')
+            commands.append(self.build_command(newstation))
+            self.stations.append(newstation)
+
+        stationcost = INIT_BUILD_COST * BUILD_FACTOR ** len(self.stations)
+        if stationcost <= state.money:
+            newstation = self.get_max_node(graph, 'weight')
+            oldfitness = self.fitness()
+            self.stations.append(newstation)
+            newfitness = self.fitness()
+            if newfitness > oldfitness and stationcost < state.money:
+              commands.append(self.build_command(newstation))
+            else:
+              self.stations.pop()
 
         pending_orders = set(state.get_pending_orders())
 
@@ -141,8 +156,6 @@ class Player(BasePlayer):
                 pending_orders.remove(best_order)
             else:
                 break
-
-        station = self.stations[0]
 
         for (path, order) in paths:
             if self.path_is_valid(state, path):
